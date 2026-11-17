@@ -1,0 +1,9 @@
+node_modules
+.env
+profiles/
+screenshots/
+*.db
+*.db-journal
+config.yaml
+dist
+test-videos/out/
