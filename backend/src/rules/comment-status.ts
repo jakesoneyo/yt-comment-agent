@@ -8,4 +8,5 @@ export const COMMENT_STATUS = {
   FAILED: 'failed',
 } as const;
 
-export type CommentStatus = (typeof COMMENT_STATUS)[keyof typeof COMMENT_STATUS];
+export type CommentStatus =
+  (typeof COMMENT_STATUS)[keyof typeof COMMENT_STATUS];

@@ -30,7 +30,9 @@ function obj(v: unknown, path: string): Obj {
 function str(o: Obj, key: string, path: string): string {
   const v = o[key];
   if (typeof v !== 'string' || v.trim() === '') {
-    throw new Error(`config.yaml: '${path}.${key}'는 비어 있지 않은 문자열이어야 합니다`);
+    throw new Error(
+      `config.yaml: '${path}.${key}'는 비어 있지 않은 문자열이어야 합니다`,
+    );
   }
   return v;
 }
@@ -67,7 +69,11 @@ export function parseConfig(source: string): AppConfig {
   const profiles = root.profiles.map((p, i) => {
     const o = obj(p, `profiles[${i}]`);
     const path = `profiles[${i}]`;
-    return { name: str(o, 'name', path), dir: str(o, 'dir', path), persona: str(o, 'persona', path) };
+    return {
+      name: str(o, 'name', path),
+      dir: str(o, 'dir', path),
+      persona: str(o, 'persona', path),
+    };
   });
   if (new Set(profiles.map((p) => p.name)).size !== profiles.length) {
     throw new Error("config.yaml: 'profiles[].name'이 중복되었습니다");
@@ -80,14 +86,22 @@ export function parseConfig(source: string): AppConfig {
     brand: str(c, 'brand', 'comment'),
   };
   if (comment.min_chars > comment.max_chars) {
-    throw new Error("config.yaml: 'comment.min_chars'가 'max_chars'보다 클 수 없습니다");
+    throw new Error(
+      "config.yaml: 'comment.min_chars'가 'max_chars'보다 클 수 없습니다",
+    );
   }
 
   const s = obj(root.sources, 'sources');
   return {
     profiles,
     comment,
-    limits: { daily_max_comments: posInt(obj(root.limits, 'limits'), 'daily_max_comments', 'limits') },
+    limits: {
+      daily_max_comments: posInt(
+        obj(root.limits, 'limits'),
+        'daily_max_comments',
+        'limits',
+      ),
+    },
     sources: {
       keywords: strArray(s, 'keywords', 'sources'),
       channels: strArray(s, 'channels', 'sources'),
@@ -102,7 +116,9 @@ export function loadConfig(path: string): AppConfig {
   try {
     source = readFileSync(path, 'utf8');
   } catch {
-    throw new Error(`config.yaml을 읽을 수 없습니다 (${path}). config.example.yaml을 복사해 만드세요`);
+    throw new Error(
+      `config.yaml을 읽을 수 없습니다 (${path}). config.example.yaml을 복사해 만드세요`,
+    );
   }
   return parseConfig(source);
 }

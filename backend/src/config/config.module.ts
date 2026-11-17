@@ -10,7 +10,10 @@ export const APP_CONFIG = 'APP_CONFIG';
   providers: [
     {
       provide: APP_CONFIG,
-      useFactory: (): AppConfig => loadConfig(process.env.CONFIG_PATH ?? resolve(process.cwd(), '../config.yaml')),
+      useFactory: (): AppConfig =>
+        loadConfig(
+          process.env.CONFIG_PATH ?? resolve(process.cwd(), '../config.yaml'),
+        ),
     },
   ],
   exports: [APP_CONFIG],

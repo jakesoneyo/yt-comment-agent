@@ -2,10 +2,16 @@
  * 운영 규칙: 영상당 댓글 1개, 하루 게시 상한, 프로필 자동 배정.
  * 규칙 검사와 자리 예약(VideoLock + CommentLog)을 한 트랜잭션에 묶어 버튼 연타/동시 요청에도 중복 게시를 막는다.
  */
-import { ConflictException, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { CommentLog, Prisma } from '@prisma/client';
 import { APP_CONFIG } from '../config/config.module';
-import { AppConfig } from '../config/app-config';
+import type { AppConfig } from '../config/app-config';
 import { PrismaService } from '../prisma/prisma.service';
 import { COMMENT_STATUS, CommentStatus } from './comment-status';
 
@@ -18,7 +24,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export function kstDayStart(now: Date): Date {
   const kstMs = now.getTime() + KST_OFFSET_MS;
-  return new Date(kstMs - (((kstMs % DAY_MS) + DAY_MS) % DAY_MS) - KST_OFFSET_MS);
+  return new Date(
+    kstMs - (((kstMs % DAY_MS) + DAY_MS) % DAY_MS) - KST_OFFSET_MS,
+  );
 }
 
 export interface ReserveInput {
@@ -37,7 +45,10 @@ export class RulesService {
 
   private todayWhere(now: Date): Prisma.CommentLogWhereInput {
     const start = kstDayStart(now);
-    return { status: { not: COMMENT_STATUS.FAILED }, createdAt: { gte: start, lt: new Date(start.getTime() + DAY_MS) } };
+    return {
+      status: { not: COMMENT_STATUS.FAILED },
+      createdAt: { gte: start, lt: new Date(start.getTime() + DAY_MS) },
+    };
   }
 
   /**
@@ -48,25 +59,40 @@ export class RulesService {
   async reserve(input: ReserveInput, now = new Date()): Promise<CommentLog> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const lock = await tx.videoLock.findUnique({ where: { videoId: input.videoId } });
-        if (lock) throw this.lockConflict(await tx.commentLog.findUnique({ where: { id: lock.commentLogId } }));
+        const lock = await tx.videoLock.findUnique({
+          where: { videoId: input.videoId },
+        });
+        if (lock)
+          throw this.lockConflict(
+            await tx.commentLog.findUnique({
+              where: { id: lock.commentLogId },
+            }),
+          );
 
         const used = await tx.commentLog.count({ where: this.todayWhere(now) });
         const limit = this.config.limits.daily_max_comments;
         if (used >= limit) {
-          throw new HttpException(`오늘 게시 상한 도달 (${used}/${limit})`, HttpStatus.TOO_MANY_REQUESTS);
+          throw new HttpException(
+            `오늘 게시 상한 도달 (${used}/${limit})`,
+            HttpStatus.TOO_MANY_REQUESTS,
+          );
         }
 
         // createdAt에 now를 넣어 "오늘" 집계 기준과 항상 같은 시계를 쓴다
         const log = await tx.commentLog.create({
           data: { ...input, status: COMMENT_STATUS.OPENING, createdAt: now },
         });
-        await tx.videoLock.create({ data: { videoId: input.videoId, commentLogId: log.id } });
+        await tx.videoLock.create({
+          data: { videoId: input.videoId, commentLogId: log.id },
+        });
         return log;
       });
     } catch (e) {
       // 동시 요청이 findUnique를 모두 통과해도 PK 제약이 최후 방어선
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
         throw new ConflictException('이미 진행 중인 영상입니다');
       }
       throw e;
@@ -74,22 +100,40 @@ export class RulesService {
   }
 
   private lockConflict(owner: CommentLog | null): ConflictException {
-    return new ConflictException(owner?.status === COMMENT_STATUS.POSTED ? '이미 댓글을 단 영상입니다' : '이미 진행 중인 영상입니다');
+    return new ConflictException(
+      owner?.status === COMMENT_STATUS.POSTED
+        ? '이미 댓글을 단 영상입니다'
+        : '이미 진행 중인 영상입니다',
+    );
   }
 
   /** 진행 단계 갱신(opening→typing→…). 부가 정보(commentUrl 등)는 extra로 함께 저장. */
   markStatus(
     logId: number,
     status: CommentStatus,
-    extra: { commentUrl?: string; error?: string; screenshotPath?: string } = {},
+    extra: {
+      commentUrl?: string;
+      error?: string;
+      screenshotPath?: string;
+    } = {},
   ): Promise<CommentLog> {
-    return this.prisma.commentLog.update({ where: { id: logId }, data: { status, ...extra } });
+    return this.prisma.commentLog.update({
+      where: { id: logId },
+      data: { status, ...extra },
+    });
   }
 
   /** 실패 처리 + VideoLock 해제. 락을 풀어야 같은 영상 재시도가 가능하고, failed 건은 상한에서도 빠진다. */
-  async fail(logId: number, error: string, screenshotPath?: string): Promise<CommentLog> {
+  async fail(
+    logId: number,
+    error: string,
+    screenshotPath?: string,
+  ): Promise<CommentLog> {
     const [log] = await this.prisma.$transaction([
-      this.prisma.commentLog.update({ where: { id: logId }, data: { status: COMMENT_STATUS.FAILED, error, screenshotPath } }),
+      this.prisma.commentLog.update({
+        where: { id: logId },
+        data: { status: COMMENT_STATUS.FAILED, error, screenshotPath },
+      }),
       this.prisma.videoLock.deleteMany({ where: { commentLogId: logId } }),
     ]);
     return log;
@@ -117,7 +161,9 @@ export class RulesService {
       where: this.todayWhere(now),
       _count: { _all: true },
     });
-    const perProfile = Object.fromEntries(this.config.profiles.map((p) => [p.name, 0]));
+    const perProfile = Object.fromEntries(
+      this.config.profiles.map((p) => [p.name, 0]),
+    );
     for (const g of groups) perProfile[g.profileName] = g._count._all;
     const used = groups.reduce((sum, g) => sum + g._count._all, 0);
     return { used, limit: this.config.limits.daily_max_comments, perProfile };
