@@ -1,0 +1,45 @@
+// SQLite 스키마. SQLite는 enum·Json 미지원이라 status는 String(상수는 rules/comment-status.ts), evidence/validation은 JSON 직렬화 String.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Draft {
+  id          Int      @id @default(autoincrement())
+  videoId     String
+  profileName String
+  concern     String
+  evidence    String // JSON: [{ts, quote}]
+  comment     String
+  validation  String // JSON
+  createdAt   DateTime @default(now())
+
+  @@index([videoId])
+}
+
+/// 영상당 1개 보장용 예약 행. 실패 시 삭제, 성공 시 영구 유지.
+model VideoLock {
+  videoId      String   @id
+  commentLogId Int      @unique
+  createdAt    DateTime @default(now())
+}
+
+model CommentLog {
+  id             Int      @id @default(autoincrement())
+  videoId        String
+  videoTitle     String
+  profileName    String
+  text           String
+  status         String // COMMENT_STATUS 참고
+  commentUrl     String?
+  error          String?
+  screenshotPath String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdAt, status])
+}

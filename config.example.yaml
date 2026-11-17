@@ -1,0 +1,16 @@
+profiles:
+  - name: 유튜브1
+    dir: ./profiles/youtube1
+    persona: "24살, 짝사랑만 3년째인 대학생. 말끝 흐리고 ㅠㅠ 자주 씀"
+  - name: 유튜브2
+    dir: ./profiles/youtube2
+    persona: "28살, 2년 연애 끝나고 반년째 정리 중인 직장인. 담담한 반말체"
+  - name: 유튜브3
+    dir: ./profiles/youtube3
+    persona: "31살, 결혼 얘기 나오는 연애 중. 존댓말, 현실적인 톤"
+comment: { min_chars: 40, max_chars: 120, brand: 운명원 }
+limits: { daily_max_comments: 10 }
+sources:
+  keywords: [연애]
+  channels: [] # 테스트 채널 ID
+  max_results: 12
