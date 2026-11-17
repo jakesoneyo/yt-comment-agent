@@ -1,10 +1,12 @@
+/** 루트 모듈. YouTube·Draft·Posting 모듈은 이후 단계에서 추가. */
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ConfigModule } from './config/config.module';
+import { HealthController } from './health/health.controller';
+import { PrismaModule } from './prisma/prisma.module';
+import { RulesModule } from './rules/rules.module';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [ConfigModule, PrismaModule, RulesModule],
+  controllers: [HealthController],
 })
 export class AppModule {}
