@@ -78,6 +78,10 @@ describe('validateComment', () => {
       '운명원 소름 돋았어',
       '운명원 해봤더니 신기함',
       '운명원 봤더니 울었음',
+      '운명원에서 사주 봤어요 신기',
+      '운명원 가서 받았는데 좋음',
+      '운명원 갔다 왔는데 괜찮음',
+      '운명원 사주 진짜 맞았음',
     ])('거부: %s', (s) => {
       const r = validateComment(mk(s), base);
       expect(r.ok).toBe(false);
@@ -88,6 +92,7 @@ describe('validateComment', () => {
       '운명원 사주 잘 본다던데',
       '운명원이 잘 본다던데 나도 보고 싶다',
       '운명원 본다던데 궁금하다',
+      '운명원 사주 한번 봤으면 좋겠다',
     ])('통과: %s', (s) => {
       expect(validateComment(mk(s), base).violations).toEqual([]);
     });

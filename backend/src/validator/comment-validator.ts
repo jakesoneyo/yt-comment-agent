@@ -18,9 +18,10 @@ export interface ValidationResult {
 }
 
 const LINK_PATTERN = /https?|www\.|\.com|\.kr|youtu\.be|#/i;
-// 브랜드를 "이미 써봤다"고 말하는 완료형 경험 표현. "본다던데/보고 싶다"는 전언·의향이라 걸리지 않아야 함
+// 브랜드를 "이미 써봤다"고 말하는 완료형 경험 표현. "본다던데/보고 싶다/봤으면"은 전언·의향이라 걸리지 않아야 함
+// "봤"은 과거형 전부(봤어요·봤는데·봤더니)를 잡되, 바람을 뜻하는 "봤으면"만 예외
 const REVIEW_PATTERN =
-  /봤는데|받아봤|봤더니|다녀왔|상담받|후기|맞더라|소름|해봤/;
+  /봤(?!으면)|받았|받아봤|다녀왔|다녀옴|갔다\s?왔|상담받|후기|맞더라|맞았|소름|해봤/;
 const SIMILARITY_LIMIT = 0.35;
 
 function bigrams(text: string): Set<string> {
