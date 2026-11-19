@@ -11,14 +11,14 @@ import {
 } from "./api";
 import { btnGhost, btnPri, Panel } from "./ui";
 
-/** 검증기 위반 문구(backend comment-validator.ts)를 6개 규칙에 대응시키는 판별식. */
-const RULES: { label: string; hit: RegExp }[] = [
-  { label: "40~120자", hit: /글자여야/ },
-  { label: "링크·해시태그 없음", hit: /링크·URL/ },
-  { label: "운명원 1회", hit: /정확히 1번/ },
-  { label: "후기 날조 없음", hit: /직접 이용한 경험/ },
-  { label: "근거 키워드 포함", hit: /근거 키워드/ },
-  { label: "최근 댓글과 다름", hit: /비슷합니다/ },
+/** 화면 체크리스트 6항목. id는 backend comment-validator.ts의 RuleId와 같아야 함 */
+const RULES: { id: string; label: string }[] = [
+  { id: "length", label: "40~120자" },
+  { id: "link", label: "링크·해시태그 없음" },
+  { id: "brand", label: "운명원 1회" },
+  { id: "fabricated", label: "후기 날조 없음" },
+  { id: "evidence", label: "근거 키워드 포함" },
+  { id: "similar", label: "최근 댓글과 다름" },
 ];
 
 /** 근거 인용 안의 keyword를 mark로 강조. */
@@ -73,6 +73,7 @@ export function DraftPanel({
   const len = text === null ? 0 : [...text].length;
   const edited = draft !== undefined && text !== draft.comment;
   const violations = draft?.validation.violations ?? [];
+  const failed = draft?.validation.failed ?? [];
 
   return (
     <Panel n={2} title="맥락 분석과 초안" right={video.title.slice(0, 20)}>
@@ -133,19 +134,21 @@ export function DraftPanel({
           </div>
           <div>
             <span className="text-xs font-semibold text-sub">근거 장면</span>
-            {draft.evidence.map((e) => (
-              <div
-                key={e.ts + e.quote}
-                className="grid grid-cols-[52px_1fr] gap-2.5 border-t border-line py-2.5 first:mt-1.5"
-              >
-                <span className="font-semibold tabular-nums text-acc">
-                  {e.ts}
-                </span>
-                <q className="leading-normal text-sub [quotes:none]">
-                  <Quote quote={e.quote} keyword={e.keyword} />
-                </q>
-              </div>
-            ))}
+            {[...draft.evidence]
+              .sort((a, b) => a.ts.localeCompare(b.ts))
+              .map((e) => (
+                <div
+                  key={e.ts + e.quote}
+                  className="grid grid-cols-[52px_1fr] gap-2.5 border-t border-line py-2.5 first:mt-1.5"
+                >
+                  <span className="font-semibold tabular-nums text-acc">
+                    {e.ts}
+                  </span>
+                  <q className="leading-normal text-sub [quotes:none]">
+                    <Quote quote={e.quote} keyword={e.keyword} />
+                  </q>
+                </div>
+              ))}
           </div>
           <div>
             <span className="text-xs font-semibold text-sub">
@@ -184,7 +187,8 @@ export function DraftPanel({
             )}
             <ul className="m-0 grid list-none grid-cols-2 gap-x-3.5 gap-y-1.5 p-0">
               {RULES.map((r) => {
-                const bad = violations.find((x) => r.hit.test(x));
+                const i = failed.indexOf(r.id);
+                const bad = i >= 0 ? violations[i] : undefined;
                 return (
                   <li
                     key={r.label}

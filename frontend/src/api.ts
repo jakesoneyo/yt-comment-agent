@@ -56,7 +56,13 @@ export interface Draft {
   evidence: Evidence[];
   comment: string;
   viewer_tone: string;
-  validation: { ok: boolean; violations: string[]; attempts: number };
+  validation: {
+    ok: boolean;
+    violations: string[];
+    /** violations와 같은 순서의 규칙 ID(backend comment-validator.ts RuleId). 예전 초안엔 없을 수 있음 */
+    failed?: string[];
+    attempts: number;
+  };
 }
 
 export interface CommentLog {

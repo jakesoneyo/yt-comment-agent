@@ -53,7 +53,12 @@ describe('DraftService.generate', () => {
     const { svc, generate, create } = setup([GOOD]);
     const res = await svc.generate('v');
     expect(generate).toHaveBeenCalledTimes(1);
-    expect(res.validation).toEqual({ ok: true, violations: [], attempts: 1 });
+    expect(res.validation).toEqual({
+      ok: true,
+      violations: [],
+      failed: [],
+      attempts: 1,
+    });
     expect(res.profileName).toBe('P1');
     expect(res.viewer_tone).toBe('반말');
     expect(

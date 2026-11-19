@@ -169,8 +169,16 @@ describe('validateComment', () => {
       expect(validateComment(PDF_EXAMPLE, { ...base, maxChars: 150 })).toEqual({
         ok: true,
         violations: [],
+        failed: [],
       });
     });
+  });
+
+  it('위반 규칙 ID를 failed로 함께 반환(화면 체크리스트용)', () => {
+    expect(validateComment(ofLength(60), base).failed).toEqual([]);
+    const r = validateComment('짧음 www.a.com', base);
+    expect(r.failed).toEqual(['length', 'link', 'brand', 'evidence']);
+    expect(r.failed).toHaveLength(r.violations.length);
   });
 
   it('여러 위반을 한꺼번에 반환', () => {

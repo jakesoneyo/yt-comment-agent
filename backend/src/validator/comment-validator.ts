@@ -12,9 +12,16 @@ export interface ValidateOptions {
   recentComments: string[];
 }
 
+/** 검증기 6개 규칙의 ID. 화면 체크리스트는 문구가 아니라 이 ID로 위반 여부를 표시한다 */
+export type RuleId =
+  'length' | 'link' | 'brand' | 'fabricated' | 'evidence' | 'similar';
+
 export interface ValidationResult {
   ok: boolean;
+  /** 재생성 프롬프트·화면에 그대로 쓰는 한국어 지시문 */
   violations: string[];
+  /** violations와 같은 순서의 규칙 ID */
+  failed: RuleId[];
 }
 
 const LINK_PATTERN = /https?|www\.|\.com|\.kr|youtu\.be|#/i;
@@ -50,23 +57,31 @@ export function validateComment(
   opts: ValidateOptions,
 ): ValidationResult {
   const violations: string[] = [];
+  const failed: RuleId[] = [];
+  const add = (rule: RuleId, message: string) => {
+    failed.push(rule);
+    violations.push(message);
+  };
   const len = [...text].length;
 
   if (len < opts.minChars || len > opts.maxChars) {
-    violations.push(
+    add(
+      'length',
       `댓글은 ${opts.minChars}~${opts.maxChars}글자여야 합니다 (현재 ${len}글자). 길이를 맞춰 다시 쓰세요.`,
     );
   }
 
   if (LINK_PATTERN.test(text)) {
-    violations.push(
+    add(
+      'link',
       '링크·URL(http, www, .com, .kr, youtu.be)과 해시태그(#)는 넣지 마세요.',
     );
   }
 
   const brandCount = text.split(opts.brand).length - 1;
   if (brandCount !== 1) {
-    violations.push(
+    add(
+      'brand',
       `'${opts.brand}'은(는) 댓글에 정확히 1번만 언급해야 합니다 (현재 ${brandCount}번).`,
     );
   }
@@ -76,7 +91,8 @@ export function validateComment(
     .split(/[.!?…\n]+/)
     .some((s) => s.includes(opts.brand) && REVIEW_PATTERN.test(s));
   if (fabricated) {
-    violations.push(
+    add(
+      'fabricated',
       `'${opts.brand}'을(를) 직접 이용한 경험(봤는데, 받아봤, 후기, 맞더라 등)처럼 쓰지 말고, "잘 본다던데 나도 보고 싶다"처럼 전해 들은 말과 앞으로의 의향으로만 쓰세요.`,
     );
   }
@@ -85,7 +101,8 @@ export function validateComment(
     opts.evidenceKeywords.length > 0 &&
     !opts.evidenceKeywords.some((k) => text.includes(k))
   ) {
-    violations.push(
+    add(
+      'evidence',
       `영상 근거 키워드(${opts.evidenceKeywords.join(', ')}) 중 하나를 댓글에 그대로 포함하세요.`,
     );
   }
@@ -94,10 +111,11 @@ export function validateComment(
     (r) => bigramJaccard(text, r) >= SIMILARITY_LIMIT,
   );
   if (similar) {
-    violations.push(
+    add(
+      'similar',
       '최근에 쓴 댓글과 너무 비슷합니다. 표현과 문장 구조를 완전히 다르게 쓰세요.',
     );
   }
 
-  return { ok: violations.length === 0, violations };
+  return { ok: violations.length === 0, violations, failed };
 }
