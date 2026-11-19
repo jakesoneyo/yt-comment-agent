@@ -1,9 +1,13 @@
 /** 진입점: 전역 검증 파이프, CORS(대시보드 5173), Swagger(/docs). */
 import 'reflect-metadata';
+import { existsSync } from 'node:fs';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+
+// .env를 직접 로드(Node 내장). Prisma가 우연히 읽어주는 동작에 기대지 않기 위함
+if (existsSync('.env')) process.loadEnvFile('.env');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
