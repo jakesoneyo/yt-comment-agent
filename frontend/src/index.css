@@ -1,0 +1,65 @@
+/* 디자인 토큰(시안 A). 라이트/다크 값은 CSS 변수로 두고 Tailwind 색상에 연결한다. */
+@import "tailwindcss";
+
+:root {
+  --bg: #f4f4f5;
+  --panel: #fff;
+  --line: #e4e4e7;
+  --ink: #18181b;
+  --sub: #52525b;
+  --muted: #71717a;
+  --acc: #047857;
+  --acc-soft: #ecfdf5;
+  --on-acc: #fff;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+  --bad: #b91c1c;
+  --bad-soft: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f11;
+    --panel: #18181b;
+    --line: #27272a;
+    --ink: #f4f4f5;
+    --sub: #a1a1aa;
+    --muted: #8b8b93;
+    --acc: #34d399;
+    --acc-soft: #052e22;
+    --on-acc: #052e22;
+    --warn: #fbbf24;
+    --warn-soft: #2a1f05;
+    --bad: #f87171;
+    --bad-soft: #2d1212;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-sub: var(--sub);
+  --color-muted: var(--muted);
+  --color-acc: var(--acc);
+  --color-acc-soft: var(--acc-soft);
+  --color-on-acc: var(--on-acc);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: "Pretendard Variable", Pretendard, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
