@@ -1,6 +1,7 @@
 /**
  * Playwright로 실제 크롬 창을 열어 한 글자씩 타이핑해 댓글을 게시하고, 내 댓글을 찾아 고유 링크(lc)를 저장한다.
- * execute는 어떤 경우에도 reject하지 않는다 — 실패는 스크린샷과 함께 rules.fail로 기록하고 context는 항상 닫는다.
+ * execute는 어떤 경우에도 reject하지 않는다. 실패는 스크린샷과 함께 기록하고 context는 항상 닫는다.
+ * 제출 버튼을 누르기 전 실패는 rules.fail(락 해제), 누른 뒤 실패는 rules.unverified(락 유지 — 중복 게시 방지).
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { mkdir } from 'node:fs/promises';
@@ -9,7 +10,11 @@ import { chromium, type BrowserContext, type Page } from 'playwright';
 import { configPath } from '../config/config.module';
 import { COMMENT_STATUS } from '../rules/comment-status';
 import { RulesService } from '../rules/rules.service';
-import { findPostedComment, type ThreadSnapshot } from './comment-match';
+import {
+  findPostedComment,
+  normalizeText,
+  type ThreadSnapshot,
+} from './comment-match';
 import { SEL, TEXT } from './youtube.selectors';
 
 /** 사용자에게 그대로 보여줄 수 있는 실패 사유. 그 외 예외는 "예상치 못한 오류"로 감싼다. */
@@ -41,15 +46,16 @@ export class PostingRunner {
   async execute(job: PostingJob): Promise<void> {
     let ctx: BrowserContext | undefined;
     let page: Page | undefined;
+    const state = { submitted: false };
     try {
       ctx = await this.launch(job.profileDir);
       page = ctx.pages()[0] ?? (await ctx.newPage());
-      const url = await this.post(page, job);
+      const url = await this.post(page, job, state);
       await this.rules.succeed(job.logId, url);
       // 시연용: 내 댓글이 화면에 보이는 채로 잠깐 유지
       await page.waitForTimeout(HOLD_MS);
     } catch (e) {
-      await this.recordFailure(job.logId, e, page);
+      await this.recordFailure(job.logId, e, page, state.submitted);
     } finally {
       await ctx?.close().catch(() => undefined);
     }
@@ -85,7 +91,11 @@ export class PostingRunner {
     }
   }
 
-  private async post(page: Page, job: PostingJob): Promise<string> {
+  private async post(
+    page: Page,
+    job: PostingJob,
+    state: { submitted: boolean },
+  ): Promise<string> {
     const { logId, videoId, text } = job;
 
     await page.goto(`https://www.youtube.com/watch?v=${videoId}&hl=ko`, {
@@ -102,7 +112,15 @@ export class PostingRunner {
       await page.keyboard.type(ch, { delay: rand(80, 180) });
     }
 
+    // 입력창이 글자를 흘리면 원문과 다른 댓글이 달리므로 제출 전에 대조한다
+    const typed = await page.locator(SEL.input).innerText();
+    if (normalizeText(typed) !== normalizeText(text)) {
+      throw new PostingError('입력된 내용이 원문과 달라 게시를 중단했습니다');
+    }
+
     await this.rules.markStatus(logId, COMMENT_STATUS.POSTING);
+    // 클릭 직전에 표시: 클릭이 예외를 던져도 실제로는 게시됐을 수 있다
+    state.submitted = true;
     await page.locator(SEL.submit).click();
 
     await this.rules.markStatus(logId, COMMENT_STATUS.VERIFYING);
@@ -170,7 +188,12 @@ export class PostingRunner {
     );
   }
 
-  private async recordFailure(logId: number, e: unknown, page?: Page) {
+  private async recordFailure(
+    logId: number,
+    e: unknown,
+    page: Page | undefined,
+    submitted: boolean,
+  ) {
     const reason =
       e instanceof PostingError
         ? e.message
@@ -188,6 +211,14 @@ export class PostingRunner {
     } catch {
       // 스크린샷 실패가 실패 기록 자체를 막으면 안 됨
     }
-    await this.rules.fail(logId, reason, shot);
+    if (submitted) {
+      await this.rules.unverified(
+        logId,
+        `${reason} (게시됐을 수 있음, 영상에서 직접 확인 필요)`,
+        shot,
+      );
+    } else {
+      await this.rules.fail(logId, reason, shot);
+    }
   }
 }

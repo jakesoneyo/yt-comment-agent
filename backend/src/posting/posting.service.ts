@@ -9,6 +9,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  type OnModuleInit,
 } from '@nestjs/common';
 import type { AppConfig } from '../config/app-config';
 import { APP_CONFIG } from '../config/config.module';
@@ -20,7 +21,7 @@ import type { CreateCommentDto } from './posting.dto';
 import { PostingRunner } from './posting.runner';
 
 @Injectable()
-export class PostingService {
+export class PostingService implements OnModuleInit {
   private readonly logger = new Logger(PostingService.name);
   // ponytail: 단일 프로세스 락, 다중 워커 필요 시 DB 락으로
   private busy = false;
@@ -32,6 +33,11 @@ export class PostingService {
     private readonly runner: PostingRunner,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /** 이전 프로세스가 게시 도중 꺼졌다면 진행 상태로 남은 기록·락을 정리(인메모리 락은 재시작으로 이미 풀림) */
+  onModuleInit(): Promise<void> {
+    return this.rules.recoverInterrupted();
+  }
 
   /**
    * 게시를 시작하고 logId를 즉시 반환한다.

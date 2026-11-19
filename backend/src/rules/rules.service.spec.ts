@@ -243,3 +243,53 @@ describe('recentComments', () => {
     expect(await rules.recentComments(2)).toEqual(['new', 'mid']);
   });
 });
+
+describe('unverified (게시 버튼을 누른 뒤 확인 실패)', () => {
+  it('락을 유지해 같은 영상 재시도를 409로 막는다', async () => {
+    const log = await rules.reserve(req('vu'), NOW);
+    await rules.unverified(log.id, '게시 확인 실패', 'screenshots/1.png');
+    const row = await prisma.commentLog.findUniqueOrThrow({
+      where: { id: log.id },
+    });
+    expect(row.status).toBe(COMMENT_STATUS.UNVERIFIED);
+    expect(row.error).toBe('게시 확인 실패');
+    expect(await prisma.videoLock.count({ where: { videoId: 'vu' } })).toBe(1);
+    await expect(rules.reserve(req('vu'), NOW)).rejects.toThrow(
+      '이미 댓글을 단 영상입니다',
+    );
+  });
+
+  it('실제로 게시됐을 수 있으므로 하루 상한에 포함한다', async () => {
+    const log = await rules.reserve(req('vu2'), NOW);
+    await rules.unverified(log.id, 'x');
+    expect((await rules.todayStats(NOW)).used).toBe(1);
+  });
+});
+
+describe('recoverInterrupted (서버가 게시 도중 꺼졌을 때)', () => {
+  it('제출 전 단계는 failed+락 해제, 제출 후 단계는 unverified+락 유지, 종료 상태는 그대로', async () => {
+    const ids: Record<string, number> = {};
+    for (const s of ['opening', 'typing', 'posting', 'verifying', 'posted']) {
+      const log = await rules.reserve(req(`r-${s}`), NOW);
+      await rules.markStatus(log.id, s as never);
+      ids[s] = log.id;
+    }
+    await rules.recoverInterrupted();
+
+    const status = async (s: string) =>
+      (await prisma.commentLog.findUniqueOrThrow({ where: { id: ids[s] } }))
+        .status;
+    const locked = async (s: string) =>
+      (await prisma.videoLock.count({ where: { videoId: `r-${s}` } })) === 1;
+
+    expect(await status('opening')).toBe(COMMENT_STATUS.FAILED);
+    expect(await status('typing')).toBe(COMMENT_STATUS.FAILED);
+    expect(await locked('opening')).toBe(false);
+    expect(await locked('typing')).toBe(false);
+    expect(await status('posting')).toBe(COMMENT_STATUS.UNVERIFIED);
+    expect(await status('verifying')).toBe(COMMENT_STATUS.UNVERIFIED);
+    expect(await locked('posting')).toBe(true);
+    expect(await locked('verifying')).toBe(true);
+    expect(await status('posted')).toBe(COMMENT_STATUS.POSTED);
+  });
+});

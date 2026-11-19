@@ -82,7 +82,7 @@ sources:
 
 - **Draft**: id, videoId, profileName, concern(고민 한 줄), evidence(JSON: [{ts, quote, keyword}]), comment, validation(JSON), createdAt
 - **VideoLock**: videoId(PK), commentLogId, createdAt — 게시 시작 시 insert(예약). 실패 시 delete → 재시도 허용. 성공 시 영구 유지 = **영상당 1개 보장**
-- **CommentLog**: id, videoId, videoTitle, profileName, text, status(`opening|typing|posting|verifying|posted|failed`), commentUrl?, error?, screenshotPath?, createdAt, updatedAt — 모든 시도 기록(실패 포함)
+- **CommentLog**: id, videoId, videoTitle, profileName, text, status(`opening|typing|posting|verifying|posted|failed|unverified`), commentUrl?, error?, screenshotPath?, createdAt, updatedAt — 모든 시도 기록(실패 포함)
 
 **하루 상한**: 한 트랜잭션에서 `오늘(KST 00:00~) status != failed` 건수 < `daily_max_comments` 확인 후 VideoLock + CommentLog 생성. SQLite 쓰기 직렬화로 경쟁 상태 차단.
 
@@ -151,7 +151,9 @@ chromium.launchPersistentContext(profile.dir, { channel: 'chrome', headless: fal
 6. `verifying` — 정렬 "최신순" → 내 채널명 + 본문 일치 댓글 탐지 → 타임스탬프 링크에서 `lc=` 추출 → commentUrl 저장
 7. `posted` — 해당 댓글로 스크롤해 화면에 보이게 유지(시연용 3초) 후 종료
 
-- 실패 시: 사유 분류 + `screenshots/{logId}.png` 저장 + VideoLock 해제
+- 실패 시: 사유 분류 + `screenshots/{logId}.png` 저장. 제출 버튼 **전** 실패는 VideoLock 해제(`failed`), **후** 실패는 락 유지(`unverified` — 실제로 달렸을 수 있어 중복 게시 방지, 상한에도 포함)
+- 제출 전 입력창 내용을 원문과 대조, 다르면 게시 중단
+- 서버 기동 시 진행 상태로 남은 기록 정리: opening·typing → failed, posting·verifying → unverified
 - 셀렉터는 한 파일(`youtube.selectors.ts`)에 모아 UI 변경 대응
 
 **프로필 최초 로그인**: 자동화 크롬은 구글 로그인이 막힐 수 있음 → 일반 크롬을 `--user-data-dir=./profiles/youtube1`로 직접 실행해 수동 로그인(1회). README에 명령어 제공.

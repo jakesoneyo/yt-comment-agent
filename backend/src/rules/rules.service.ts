@@ -101,7 +101,8 @@ export class RulesService {
 
   private lockConflict(owner: CommentLog | null): ConflictException {
     return new ConflictException(
-      owner?.status === COMMENT_STATUS.POSTED
+      owner?.status === COMMENT_STATUS.POSTED ||
+        owner?.status === COMMENT_STATUS.UNVERIFIED
         ? '이미 댓글을 단 영상입니다'
         : '이미 진행 중인 영상입니다',
     );
@@ -137,6 +138,45 @@ export class RulesService {
       this.prisma.videoLock.deleteMany({ where: { commentLogId: logId } }),
     ]);
     return log;
+  }
+
+  /**
+   * 게시 버튼을 누른 뒤의 실패. 댓글이 실제로 달렸을 수 있으므로 락을 풀지 않는다
+   * (풀면 재시도 시 같은 영상에 중복 게시될 위험). status가 failed가 아니라 상한에도 포함된다.
+   */
+  unverified(
+    logId: number,
+    error: string,
+    screenshotPath?: string,
+  ): Promise<CommentLog> {
+    return this.markStatus(logId, COMMENT_STATUS.UNVERIFIED, {
+      error,
+      screenshotPath,
+    });
+  }
+
+  /**
+   * 서버 기동 시 1회: 이전 프로세스가 게시 도중 꺼져 진행 상태로 남은 기록을 정리한다.
+   * 제출 전(opening·typing)은 failed+락 해제, 제출 후(posting·verifying)는 unverified+락 유지.
+   */
+  async recoverInterrupted(): Promise<void> {
+    const msg = '서버가 게시 도중 종료되었습니다';
+    const before = await this.prisma.commentLog.findMany({
+      where: {
+        status: { in: [COMMENT_STATUS.OPENING, COMMENT_STATUS.TYPING] },
+      },
+      select: { id: true },
+    });
+    for (const { id } of before) await this.fail(id, msg);
+    await this.prisma.commentLog.updateMany({
+      where: {
+        status: { in: [COMMENT_STATUS.POSTING, COMMENT_STATUS.VERIFYING] },
+      },
+      data: {
+        status: COMMENT_STATUS.UNVERIFIED,
+        error: `${msg} (게시됐을 수 있음, 영상에서 직접 확인 필요)`,
+      },
+    });
   }
 
   /** 게시 성공. VideoLock은 지우지 않고 영구 유지해 영상당 1개를 보장한다. */
