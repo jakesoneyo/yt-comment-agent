@@ -80,7 +80,7 @@ sources:
 
 ## 3. 데이터 모델 (Prisma)
 
-- **Draft**: id, videoId, profileName, concern(고민 한 줄), evidence(JSON: [{ts, quote}]), comment, validation(JSON), createdAt
+- **Draft**: id, videoId, profileName, concern(고민 한 줄), evidence(JSON: [{ts, quote, keyword}]), comment, validation(JSON), createdAt
 - **VideoLock**: videoId(PK), commentLogId, createdAt — 게시 시작 시 insert(예약). 실패 시 delete → 재시도 허용. 성공 시 영구 유지 = **영상당 1개 보장**
 - **CommentLog**: id, videoId, videoTitle, profileName, text, status(`opening|typing|posting|verifying|posted|failed`), commentUrl?, error?, screenshotPath?, createdAt, updatedAt — 모든 시도 기록(실패 포함)
 
@@ -107,7 +107,7 @@ Swagger: `/docs`. 입력 검증 class-validator. 게시 텍스트는 서버에�
 
 ## 5. 댓글 생성 파이프라인
 
-**입력**: 자막(yt-dlp `--write-subs --write-auto-subs --sub-langs ko --skip-download`, 없으면 제목+설명), 인기 댓글 20개(commentThreads `order=relevance`), 프로필 페르소나, 최근 생성 댓글 10개(반복 금지용).
+**입력**: 자막(yt-dlp `--write-subs --write-auto-subs --sub-langs ko --skip-download`, 없으면 제목+설명), 인기 댓글 20개(commentThreads `order=relevance`), 프로필 페르소나, 최근 게시(실패 제외) 댓글 10개(반복 금지용).
 
 **Claude 1회 호출, 구조화 출력** — 스키마 필드 순서로 "분석 → 작성" 강제:
 

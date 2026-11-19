@@ -13,7 +13,7 @@ model Draft {
   videoId     String
   profileName String
   concern     String
-  evidence    String // JSON: [{ts, quote}]
+  evidence    String // JSON: [{ts, quote, keyword}]
   comment     String
   validation  String // JSON
   createdAt   DateTime @default(now())

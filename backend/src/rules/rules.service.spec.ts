@@ -220,3 +220,26 @@ describe('pickProfile / todayStats', () => {
     });
   });
 });
+
+describe('recentComments', () => {
+  it('실패 제외, 최신순, limit 적용', async () => {
+    const at = (min: number) => new Date(NOW.getTime() + min * 60_000);
+    const mk = (text: string, status: string, min: number) =>
+      prisma.commentLog.create({
+        data: {
+          videoId: `v-${text}`,
+          videoTitle: 't',
+          profileName: 'A',
+          text,
+          status,
+          createdAt: at(min),
+        },
+      });
+    await mk('old', COMMENT_STATUS.POSTED, 0);
+    await mk('failed', COMMENT_STATUS.FAILED, 1);
+    await mk('mid', COMMENT_STATUS.OPENING, 2);
+    await mk('new', COMMENT_STATUS.POSTED, 3);
+    expect(await rules.recentComments()).toEqual(['new', 'mid', 'old']);
+    expect(await rules.recentComments(2)).toEqual(['new', 'mid']);
+  });
+});

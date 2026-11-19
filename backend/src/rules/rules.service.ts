@@ -154,6 +154,20 @@ export class RulesService {
     return best;
   }
 
+  /**
+   * 유사도 검사용 최근 게시(실패 제외) 댓글 본문, 최신순. Draft가 아니라 게시 기록을 쓰는 이유:
+   * 같은 영상을 재생성할 때 이전 초안과 비교되어 자기 자신에게 걸리는 문제를 막기 위함.
+   */
+  async recentComments(limit = 10): Promise<string[]> {
+    const rows = await this.prisma.commentLog.findMany({
+      where: { status: { not: COMMENT_STATUS.FAILED } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: { text: true },
+    });
+    return rows.map((r) => r.text);
+  }
+
   /** 대시보드 카운터용: 오늘 사용량·상한·프로필별 사용량(미사용 프로필은 0). */
   async todayStats(now = new Date()) {
     const groups = await this.prisma.commentLog.groupBy({
