@@ -33,9 +33,8 @@ const VERIFY_TIMEOUT_MS = 30_000;
 const HOLD_MS = 3_000;
 const MAX_SCROLLS = 25;
 const THREADS_TO_SCAN = 20;
-// 크롬 창을 화면 왼쪽에 두어 대시보드 오른쪽 ③ 진행 칸이 가려지지 않게 한다.
-// ponytail: 1710x1112(맥북 기본 해상도) 기준 고정값. 다른 화면에서 쓰면 config.yaml로 뺄 것
-const WINDOW_ARGS = ['--window-position=0,0', '--window-size=1340,1080'];
+// 크롬 창이 차지할 화면 왼쪽 비율. 나머지 오른쪽은 대시보드 ③ 칸(Dashboard.tsx의 25vw)과 맞물린다
+const CHROME_WIDTH_RATIO = 0.75;
 
 const rand = (min: number, max: number) =>
   Math.floor(min + Math.random() * (max - min + 1));
@@ -59,6 +58,7 @@ export class PostingRunner {
       ctx = await this.launch(job.profileDir);
       page = ctx.pages()[0] ?? (await ctx.newPage());
       this.lastFrame = null;
+      await this.placeWindow(ctx, page);
       await this.startScreencast(ctx, page);
       const url = await this.post(page, job, state);
       await this.rules.succeed(job.logId, url);
@@ -68,6 +68,34 @@ export class PostingRunner {
       await this.recordFailure(job.logId, e, page, state.submitted);
     } finally {
       await ctx?.close().catch(() => undefined);
+    }
+  }
+
+  /**
+   * 크롬 창을 화면 왼쪽 CHROME_WIDTH_RATIO만큼으로 배치해 대시보드 ③ 진행 칸이 가려지지 않게 한다.
+   * 화면 크기는 크롬에게 물어서 해상도와 무관하게 맞춘다. 배치는 부가 기능이라 실패해도 게시는 계속한다.
+   */
+  private async placeWindow(ctx: BrowserContext, page: Page) {
+    try {
+      const screen = await page.evaluate(() => ({
+        width: window.screen.availWidth,
+        height: window.screen.availHeight,
+      }));
+      const cdp = await ctx.newCDPSession(page);
+      const { windowId } = await cdp.send('Browser.getWindowForTarget');
+      await cdp.send('Browser.setWindowBounds', {
+        windowId,
+        bounds: {
+          left: 0,
+          top: 0,
+          width: Math.round(screen.width * CHROME_WIDTH_RATIO),
+          height: screen.height,
+          windowState: 'normal',
+        },
+      });
+      await cdp.detach();
+    } catch (e) {
+      this.logger.warn(`크롬 창 배치 실패: ${(e as Error).message}`);
     }
   }
 
@@ -106,7 +134,7 @@ export class PostingRunner {
           channel: 'chrome',
           headless: false,
           locale: 'ko-KR',
-          args: ['--lang=ko-KR', ...WINDOW_ARGS],
+          args: ['--lang=ko-KR'],
           viewport: null,
           // 로그인은 일반 크롬으로 한 프로필이라 쿠키가 실제 키체인 키로 암호화돼 있다.
           // Playwright 기본값(--use-mock-keychain)이면 복호화 실패 → 로그아웃 상태로 보이고 쿠키도 버려진다.

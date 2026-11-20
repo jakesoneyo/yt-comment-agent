@@ -72,7 +72,8 @@ export function Dashboard() {
   }
 
   return (
-    <main className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-6 py-4 min-[1100px]:min-h-[calc(100dvh-60px)] min-[1100px]:grid-cols-[340px_1fr_320px]">
+    // ③ 칸 = 화면 오른쪽 25%(우측 패딩 24px 포함). 게시 크롬 창이 왼쪽 75%를 차지해도 진행이 보이게(posting.runner의 CHROME_WIDTH_RATIO)
+    <main className="grid grid-cols-1 gap-4 px-6 py-4 min-[1100px]:min-h-[calc(100dvh-60px)] min-[1100px]:grid-cols-[340px_1fr_calc(25vw-24px)]">
       <Panel
         n={1}
         title="영상 불러오기"
