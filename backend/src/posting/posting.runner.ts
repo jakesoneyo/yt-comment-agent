@@ -33,6 +33,9 @@ const VERIFY_TIMEOUT_MS = 30_000;
 const HOLD_MS = 3_000;
 const MAX_SCROLLS = 25;
 const THREADS_TO_SCAN = 20;
+// 크롬 창을 화면 왼쪽에 두어 대시보드 오른쪽 ③ 진행 칸이 가려지지 않게 한다.
+// ponytail: 1710x1112(맥북 기본 해상도) 기준 고정값. 다른 화면에서 쓰면 config.yaml로 뺄 것
+const WINDOW_ARGS = ['--window-position=0,0', '--window-size=1340,1080'];
 
 const rand = (min: number, max: number) =>
   Math.floor(min + Math.random() * (max - min + 1));
@@ -103,7 +106,7 @@ export class PostingRunner {
           channel: 'chrome',
           headless: false,
           locale: 'ko-KR',
-          args: ['--lang=ko-KR'],
+          args: ['--lang=ko-KR', ...WINDOW_ARGS],
           viewport: null,
           // 로그인은 일반 크롬으로 한 프로필이라 쿠키가 실제 키체인 키로 암호화돼 있다.
           // Playwright 기본값(--use-mock-keychain)이면 복호화 실패 → 로그아웃 상태로 보이고 쿠키도 버려진다.
