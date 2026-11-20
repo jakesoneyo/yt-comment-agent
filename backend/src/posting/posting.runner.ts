@@ -28,7 +28,7 @@ export interface PostingJob {
   profileDir: string;
 }
 
-const VERIFY_TIMEOUT_MS = 15_000;
+const VERIFY_TIMEOUT_MS = 30_000;
 const HOLD_MS = 3_000;
 const MAX_SCROLLS = 25;
 const THREADS_TO_SCAN = 20;
@@ -164,16 +164,17 @@ export class PostingRunner {
     page: Page,
     text: string,
   ): Promise<{ index: number; lc: string }> {
-    await page.locator(`${SEL.sortTrigger}:visible`).first().click();
-    await page
-      .locator(SEL.sortItem)
-      .filter({ hasText: TEXT.newest })
-      .first()
-      .click();
-
     const deadline = Date.now() + VERIFY_TIMEOUT_MS;
     do {
-      await page.waitForTimeout(1000);
+      // 정렬을 다시 고르면 댓글 목록을 서버에서 새로 받아온다.
+      // 게시 직후엔 서버 반영이 늦어 첫 조회에 빠질 수 있으므로 매 회차 다시 받는다.
+      await page.locator(`${SEL.sortTrigger}:visible`).first().click();
+      await page
+        .locator(SEL.sortItem)
+        .filter({ hasText: TEXT.newest })
+        .first()
+        .click();
+      await page.waitForTimeout(3000);
       const threads: ThreadSnapshot[] = await page.$$eval(
         SEL.thread,
         (els, s) =>
