@@ -4,7 +4,7 @@
 
 (주)제이지그룹 AI PM 과제 TRACK 2 제출물입니다.
 
-- 시연 영상: _(제출 시 링크 추가)_
+- 시연 영상: https://youtu.be/Gqm4dyPdRFI (약 3분)
 - 실행 환경: macOS + Google Chrome (크롬 프로필을 열어야 해서 웹에 올리지 않고 내 컴퓨터에서 실행)
 
 ---
