@@ -4,6 +4,7 @@
  * 제출 버튼을 누르기 전 실패는 rules.fail(락 해제), 누른 뒤 실패는 rules.unverified(락 유지 — 중복 게시 방지).
  */
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { chromium, type BrowserContext, type Page } from 'playwright';
@@ -41,6 +42,10 @@ export class PostingRunner {
   private readonly logger = new Logger(PostingRunner.name);
   private readonly rootDir = dirname(resolve(configPath()));
 
+  /** 대시보드 라이브 미리보기용: 최신 프레임(JPEG)과 'frame' 이벤트. 마지막 프레임은 다음 게시 전까지 유지 */
+  readonly live = new EventEmitter();
+  lastFrame: Buffer | null = null;
+
   constructor(private readonly rules: RulesService) {}
 
   async execute(job: PostingJob): Promise<void> {
@@ -50,6 +55,8 @@ export class PostingRunner {
     try {
       ctx = await this.launch(job.profileDir);
       page = ctx.pages()[0] ?? (await ctx.newPage());
+      this.lastFrame = null;
+      await this.startScreencast(ctx, page);
       const url = await this.post(page, job, state);
       await this.rules.succeed(job.logId, url);
       // 시연용: 내 댓글이 화면에 보이는 채로 잠깐 유지
@@ -58,6 +65,32 @@ export class PostingRunner {
       await this.recordFailure(job.logId, e, page, state.submitted);
     } finally {
       await ctx?.close().catch(() => undefined);
+    }
+  }
+
+  /**
+   * CDP 스크린캐스트로 크롬 화면을 JPEG 프레임으로 받아 live로 흘린다.
+   * 미리보기는 부가 기능이라 실패해도 게시는 계속한다.
+   */
+  private async startScreencast(ctx: BrowserContext, page: Page) {
+    try {
+      const cdp = await ctx.newCDPSession(page);
+      cdp.on('Page.screencastFrame', ({ data, sessionId }) => {
+        this.lastFrame = Buffer.from(data, 'base64');
+        this.live.emit('frame', this.lastFrame);
+        // ack를 보내야 다음 프레임이 온다
+        void cdp
+          .send('Page.screencastFrameAck', { sessionId })
+          .catch(() => undefined);
+      });
+      await cdp.send('Page.startScreencast', {
+        format: 'jpeg',
+        quality: 60,
+        maxWidth: 1280,
+        maxHeight: 1280,
+      });
+    } catch (e) {
+      this.logger.warn(`라이브 미리보기 시작 실패: ${(e as Error).message}`);
     }
   }
 

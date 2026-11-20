@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+  API,
   COMMENT_STATUS,
   errorMessage,
   getComment,
@@ -142,6 +143,28 @@ export function PostPanel({ video, text, profile }: Props) {
               );
             })}
           </ol>
+        )}
+
+      {/* 라이브 미리보기: 백엔드가 크롬 화면을 MJPEG로 흘려서 img만으로 실시간 재생. logId로 게시마다 새 연결 */}
+      {logId !== null &&
+        status !== COMMENT_STATUS.FAILED &&
+        status !== COMMENT_STATUS.UNVERIFIED && (
+          <figure className="m-0 flex flex-col gap-1.5">
+            <figcaption className="flex items-center gap-1.5 text-xs font-semibold text-sub">
+              {!status || !isTerminal(status) ? (
+                <span
+                  className="size-2 animate-pulse rounded-full bg-bad"
+                  aria-hidden
+                />
+              ) : null}
+              {profile} 크롬 화면
+            </figcaption>
+            <img
+              src={`${API}/posting/live?log=${logId}`}
+              alt={`${profile} 크롬 창 실시간 화면`}
+              className="aspect-video w-full rounded-md border border-line bg-bg object-contain object-top"
+            />
+          </figure>
         )}
 
       {status === COMMENT_STATUS.POSTED && log.data?.commentUrl && (
