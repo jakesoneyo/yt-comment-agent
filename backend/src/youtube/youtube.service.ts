@@ -97,7 +97,7 @@ export class YoutubeService {
             order: 'viewCount',
             maxResults: 50,
           }
-        : { order: 'relevance', maxResults: max_results };
+        : { order: 'date', maxResults: max_results }; // 과제 요구: [영상 불러오기]는 최신 영상
       ids = (
         await Promise.all(keywords.map((q) => this.search(q, extra)))
       ).flat();
