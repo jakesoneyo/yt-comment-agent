@@ -77,17 +77,26 @@ export class PostingRunner {
    */
   private async placeWindow(ctx: BrowserContext, page: Page) {
     try {
-      const screen = await page.evaluate(() => ({
-        width: window.screen.availWidth,
-        height: window.screen.availHeight,
-      }));
+      // availLeft/availTop(크롬 비표준)은 Dock·메뉴바를 뺀 실제 시작점. Dock이 왼쪽이면 0이 아니다
+      const screen = await page.evaluate(() => {
+        const s = window.screen as Screen & {
+          availLeft: number;
+          availTop: number;
+        };
+        return {
+          left: s.availLeft,
+          top: s.availTop,
+          width: s.availWidth,
+          height: s.availHeight,
+        };
+      });
       const cdp = await ctx.newCDPSession(page);
       const { windowId } = await cdp.send('Browser.getWindowForTarget');
       await cdp.send('Browser.setWindowBounds', {
         windowId,
         bounds: {
-          left: 0,
-          top: 0,
+          left: screen.left,
+          top: screen.top,
           width: Math.round(screen.width * CHROME_WIDTH_RATIO),
           height: screen.height,
           windowState: 'normal',
