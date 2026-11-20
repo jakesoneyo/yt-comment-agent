@@ -142,6 +142,8 @@ export class PostingRunner {
         {
           channel: 'chrome',
           headless: false,
+          // Playwright 기본값은 --no-sandbox라 크롬 상단에 경고 줄이 뜬다. 일반 크롬처럼 샌드박스를 켠다
+          chromiumSandbox: true,
           locale: 'ko-KR',
           args: ['--lang=ko-KR'],
           viewport: null,
