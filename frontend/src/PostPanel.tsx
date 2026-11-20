@@ -70,12 +70,13 @@ export function PostPanel({ video, text, profile }: Props) {
 
   const atLimit =
     stats.data !== undefined && stats.data.used >= stats.data.limit;
+  // 이미 단 영상 안내가 '초안 먼저'보다 앞서야 완료 영상에서 헛되이 초안을 만들지 않는다
   const reason = !video
     ? "먼저 ①에서 영상을 선택하세요."
-    : text === null
-      ? "먼저 ②에서 초안을 만드세요."
-      : video.done && logId === null
-        ? "이미 댓글을 단 영상은 게시할 수 없습니다."
+    : video.done && logId === null
+      ? "이미 댓글을 단 영상은 게시할 수 없습니다."
+      : text === null
+        ? "먼저 ②에서 초안을 만드세요."
         : atLimit
           ? `오늘 게시 상한에 도달했습니다 (${stats.data!.used}/${stats.data!.limit}).`
           : null;

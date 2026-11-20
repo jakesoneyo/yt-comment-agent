@@ -69,6 +69,16 @@ export function DraftPanel({
   if (!video) {
     return <Panel n={2} title="맥락 분석과 초안" disabledNote={emptyNote} />;
   }
+  // 영상당 댓글 1개 규칙: 이미 단 영상은 초안을 만들어도 게시할 수 없으니 Claude 호출 전에 막는다
+  if (video.done && !draft) {
+    return (
+      <Panel
+        n={2}
+        title="맥락 분석과 초안"
+        disabledNote="이미 댓글을 단 영상입니다. 영상당 댓글은 1개라 초안을 만들지 않습니다."
+      />
+    );
+  }
 
   const len = text === null ? 0 : [...text].length;
   const edited = draft !== undefined && text !== draft.comment;
