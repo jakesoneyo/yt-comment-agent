@@ -94,7 +94,9 @@ export class YoutubeService {
       const extra: Record<string, string | number> = rising
         ? {
             publishedAfter: new Date(Date.now() - 48 * 3_600_000).toISOString(),
-            order: 'viewCount',
+            // 조회수순이면 이미 수십만 회인 영상만 와서 1,000~5,000 구간이 비게 된다.
+            // 최신순 50개 중 몇 시간 만에 1,000회를 넘긴 영상이 '뜨기 직전' 후보
+            order: 'date',
             maxResults: 50,
           }
         : { order: 'date', maxResults: max_results }; // 과제 요구: [영상 불러오기]는 최신 영상
