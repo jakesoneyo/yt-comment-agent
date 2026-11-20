@@ -7,7 +7,7 @@ import {
   Send,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   API,
   COMMENT_STATUS,
@@ -19,7 +19,7 @@ import {
   screenshotUrl,
   type Video,
 } from "./api";
-import { btnGhost, btnPri, Panel } from "./ui";
+import { btnPri, Panel } from "./ui";
 
 const STEPS = [
   [COMMENT_STATUS.OPENING, "크롬 프로필 여는 중"],
@@ -68,19 +68,6 @@ export function PostPanel({ video, text, profile }: Props) {
     }
   }, [status, qc, log.data?.videoId]);
 
-  // 게시가 시작되면 미리보기 모달을 띄우고, 실패/미확인이면 닫아 패널의 사유·캡처를 보이게 한다
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    if (logId !== null) dialog.current?.showModal();
-  }, [logId]);
-  useEffect(() => {
-    if (
-      status === COMMENT_STATUS.FAILED ||
-      status === COMMENT_STATUS.UNVERIFIED
-    )
-      dialog.current?.close();
-  }, [status]);
-
   const atLimit =
     stats.data !== undefined && stats.data.used >= stats.data.limit;
   const reason = !video
@@ -92,51 +79,6 @@ export function PostPanel({ video, text, profile }: Props) {
         : atLimit
           ? `오늘 게시 상한에 도달했습니다 (${stats.data!.used}/${stats.data!.limit}).`
           : null;
-
-  const running =
-    logId !== null &&
-    status !== COMMENT_STATUS.FAILED &&
-    status !== COMMENT_STATUS.UNVERIFIED;
-  // logId를 쿼리에 넣어 게시마다 새 MJPEG 연결(이전 게시의 마지막 화면이 남지 않게)
-  const liveSrc = `${API}/posting/live?log=${logId}`;
-  const steps = (
-    <ol className="m-0 flex list-none flex-col p-0" aria-live="polite">
-      {STEPS.map(([key, label], i) => {
-        const cur = STEPS.findIndex(([k]) => k === status);
-        const done = i < cur || status === COMMENT_STATUS.POSTED;
-        const now = i === cur && !done;
-        return (
-          <li
-            key={key}
-            className={`grid grid-cols-[28px_1fr] gap-2.5 py-2.5 ${done || now ? "text-ink" : "text-muted"} ${now ? "font-semibold" : ""}`}
-          >
-            {done ? (
-              <Check size={20} className="text-acc" aria-label="완료" />
-            ) : now ? (
-              <Loader2
-                size={20}
-                className="animate-spin text-warn"
-                aria-label="진행 중"
-              />
-            ) : (
-              <CircleDashed size={20} aria-label="대기" />
-            )}
-            {label}
-          </li>
-        );
-      })}
-    </ol>
-  );
-  const doneLink = status === COMMENT_STATUS.POSTED && log.data?.commentUrl && (
-    <a
-      href={log.data.commentUrl}
-      target="_blank"
-      rel="noreferrer"
-      className={`${btnPri} no-underline`}
-    >
-      댓글 보기
-    </a>
-  );
 
   if (!video || text === null)
     return <Panel n={3} title="댓글 달기" disabledNote={reason!} />;
@@ -172,65 +114,69 @@ export function PostPanel({ video, text, profile }: Props) {
         </p>
       )}
 
-      {running && (
-        <>
-          {steps}
-          {/* 모달을 닫아도 작은 화면으로 남겨 다시 크게 볼 수 있게 한다 */}
-          <button
-            type="button"
-            className="group relative cursor-zoom-in overflow-hidden rounded-md border border-line bg-bg p-0"
-            onClick={() => dialog.current?.showModal()}
-            aria-label={`${profile} 크롬 화면 크게 보기`}
-          >
-            <img
-              src={liveSrc}
-              alt=""
-              className="aspect-video w-full object-contain object-top"
-            />
-            <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1.5 text-xs font-semibold text-white">
-              크게 보기
-            </span>
-          </button>
-          {doneLink}
-        </>
-      )}
-
-      {/* 라이브 미리보기 모달: 크롬 창이 대시보드 뒤에 있어도 진행을 크게 보여 준다. 네이티브 dialog라 Esc 닫기·포커스 가두기 기본 지원 */}
-      <dialog
-        ref={dialog}
-        aria-label={`${profile} 크롬 화면`}
-        className="m-auto w-[min(1500px,94vw)] rounded-xl border border-line bg-panel p-0 text-ink backdrop:bg-black/70"
-      >
-        {logId !== null && (
-          <div className="grid gap-4 p-4 lg:grid-cols-[1fr_260px]">
-            <figure className="m-0 flex flex-col gap-2">
-              <figcaption className="flex items-center gap-2 text-sm font-semibold text-sub">
-                {!status || !isTerminal(status) ? (
-                  <span
-                    className="size-2.5 animate-pulse rounded-full bg-bad"
-                    aria-hidden
-                  />
-                ) : null}
-                {profile} 크롬 화면 · 실시간
-              </figcaption>
-              <img
-                src={liveSrc}
-                alt={`${profile} 크롬 창 실시간 화면`}
-                className="max-h-[80vh] w-full rounded-md border border-line bg-bg object-contain object-top"
-              />
-            </figure>
-            <div className="flex flex-col gap-3">
-              {steps}
-              {doneLink}
-              <form method="dialog" className="mt-auto">
-                <button type="submit" className={`${btnGhost} w-full`}>
-                  닫기
-                </button>
-              </form>
-            </div>
-          </div>
+      {logId !== null &&
+        status !== COMMENT_STATUS.FAILED &&
+        status !== COMMENT_STATUS.UNVERIFIED && (
+          <ol className="m-0 flex list-none flex-col p-0" aria-live="polite">
+            {STEPS.map(([key, label], i) => {
+              const cur = STEPS.findIndex(([k]) => k === status);
+              const done = i < cur || status === COMMENT_STATUS.POSTED;
+              const now = i === cur && !done;
+              return (
+                <li
+                  key={key}
+                  className={`grid grid-cols-[28px_1fr] gap-2.5 py-2.5 ${done || now ? "text-ink" : "text-muted"} ${now ? "font-semibold" : ""}`}
+                >
+                  {done ? (
+                    <Check size={20} className="text-acc" aria-label="완료" />
+                  ) : now ? (
+                    <Loader2
+                      size={20}
+                      className="animate-spin text-warn"
+                      aria-label="진행 중"
+                    />
+                  ) : (
+                    <CircleDashed size={20} aria-label="대기" />
+                  )}
+                  {label}
+                </li>
+              );
+            })}
+          </ol>
         )}
-      </dialog>
+
+      {/* 라이브 미리보기: 백엔드가 크롬 화면을 MJPEG로 흘려서 img만으로 실시간 재생. logId로 게시마다 새 연결 */}
+      {logId !== null &&
+        status !== COMMENT_STATUS.FAILED &&
+        status !== COMMENT_STATUS.UNVERIFIED && (
+          <figure className="m-0 flex flex-col gap-1.5">
+            <figcaption className="flex items-center gap-1.5 text-xs font-semibold text-sub">
+              {!status || !isTerminal(status) ? (
+                <span
+                  className="size-2 animate-pulse rounded-full bg-bad"
+                  aria-hidden
+                />
+              ) : null}
+              {profile} 크롬 화면
+            </figcaption>
+            <img
+              src={`${API}/posting/live?log=${logId}`}
+              alt={`${profile} 크롬 창 실시간 화면`}
+              className="aspect-video w-full rounded-md border border-line bg-bg object-contain object-top"
+            />
+          </figure>
+        )}
+
+      {status === COMMENT_STATUS.POSTED && log.data?.commentUrl && (
+        <a
+          href={log.data.commentUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`${btnPri} no-underline`}
+        >
+          댓글 보기
+        </a>
+      )}
 
       {(status === COMMENT_STATUS.FAILED ||
         status === COMMENT_STATUS.UNVERIFIED) &&
