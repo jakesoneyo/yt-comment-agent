@@ -72,6 +72,9 @@ export class PostingRunner {
           locale: 'ko-KR',
           args: ['--lang=ko-KR'],
           viewport: null,
+          // 로그인은 일반 크롬으로 한 프로필이라 쿠키가 실제 키체인 키로 암호화돼 있다.
+          // Playwright 기본값(--use-mock-keychain)이면 복호화 실패 → 로그아웃 상태로 보이고 쿠키도 버려진다.
+          ignoreDefaultArgs: ['--use-mock-keychain'],
         },
       );
     } catch (e) {
